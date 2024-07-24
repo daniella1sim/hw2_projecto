@@ -39,7 +39,6 @@ def parseDbs(path1, path2):
     df2 = pd.read_csv(path2, delimiter=',', header=None)
     df = pd.merge(df1, df2, left_on=0, right_on=0, how='inner')
     df.sort_values(by=0, inplace=True)
-    df.drop(df.columns[0], axis=1, inplace=True)
     return df
 
 
@@ -101,9 +100,11 @@ Runs the kmeans++ algorithm to find the initial centroids of the clusters
 """
 def kmeanspp(data, K):
     centroidList = []
+    indexList = []
     df = data.copy()
     np.random.seed(1234)
     random_index = np.random.choice(df.index)
+    indexList.append(int(df.loc[random_index, 0]))
     random_line = df.loc[random_index]  
     random_line_list = random_line.tolist()
     centroidList.append(random_line_list)
@@ -116,8 +117,8 @@ def kmeanspp(data, K):
         for index in df.index:
             min_distance = float('inf')
             for centroid in centroidList:
-                row = df.loc[index, df.columns[:-1]].to_list()
-                distance = calculate_distance(row, centroid)
+                row = df.loc[index, df.columns[1:-1]].to_list()
+                distance = calculate_distance(row, centroid[1:])
                 if distance < min_distance:
                     min_distance = distance
             df.loc[index ,"Distance"] = min_distance
@@ -125,10 +126,15 @@ def kmeanspp(data, K):
         probability = probability / probability.sum()
         random_index = np.random.choice(df.index, p=probability)
         random_line = df.loc[random_index]
+        indexList.append(int(df.loc[random_index, 0]))
         centroidList.append(random_line.tolist()[:-1])
         df.drop(random_index, inplace = True)
-      
-    return centroidList, N
+    indexList.sort()
+
+    indexStr = ",".join([str(int(i)) for i in indexList])
+    print(indexStr)
+    df.drop(df.columns[0], axis=1, inplace=True)  
+    return indexList, N
 
 
 """
@@ -144,9 +150,8 @@ def main():
         return 1
 
     centroidList, N = kmeanspp(data, K)
-    D = len(centroidList[1])
-
     data = data.values.tolist()
+    D = len(data[0]) - 1
     'kmeans.c(K, D, N, iter, eps, centroidList, data)'
     return 0
 
