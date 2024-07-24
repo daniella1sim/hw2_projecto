@@ -1,8 +1,9 @@
 import sys
 import pandas as pd
+import numpy as np
 
 
-"""
+""""
 Verifies argument is an int
 @type arg: String
 @param arg: A string of input from user to verify
@@ -37,8 +38,8 @@ def parseDbs(path1, path2):
     df1 = pd.read_csv(path1, delimiter=',', header=None)
     df2 = pd.read_csv(path2, delimiter=',', header=None)
     df = pd.merge(df1, df2, left_on=0, right_on=0, how='inner')
-    df = df.sort_values(by=0)
-    df = df.drop(df.columns[0], axis=1)
+    df.sort_values(by=0, inplace=True)
+    df.drop(df.columns[0], axis=1, inplace=True)
     return df
 
 
@@ -74,6 +75,62 @@ def verifyData(args):
     return K, iter, eps, df
 
 
+'''
+Calculates the distance between two points
+@type row: List
+@param row: A list of floats representing a row in the dataframe
+@type random_row: List
+@param random_row: A list of floats representing a random row in the dataframe
+@rtype: float
+@returns: The distance between the two row
+'''
+def calculate_distance(row, random_row):
+    row = np.array(row)
+    random_row = np.array(random_row)    
+    return np.linalg.norm(row - random_row)
+
+
+"""
+Runs the kmeans++ algorithm to find the initial centroids of the clusters
+@type data: DataFrame
+@param data: A dataframe of the two input files merged on the first column
+@type K: int
+@param K: The number of clusters to find
+@rtype: List[List[float]]
+@returns: A list of lists of floats representing the centroids of the clusters
+"""
+def kmeanspp(data, K):
+    centroidList = []
+    df = data.copy()
+    np.random.seed(1234)
+    random_index = np.random.choice(df.index)
+    random_line = df.loc[random_index]  
+    random_line_list = random_line.tolist()
+    centroidList.append(random_line_list)
+    df.drop(random_index, inplace = True)
+    
+    N  = df.shape[0]
+    df["Distance"] = [0.0 for i in range(N)]
+    
+    for i in range(K - 1):
+        for index in df.index:
+            min_distance = float('inf')
+            for centroid in centroidList:
+                row = df.loc[index, df.columns[:-1]].to_list()
+                distance = calculate_distance(row, centroid)
+                if distance < min_distance:
+                    min_distance = distance
+            df.loc[index ,"Distance"] = min_distance
+        probability = df["Distance"]
+        probability = probability / probability.sum()
+        random_index = np.random.choice(df.index, p=probability)
+        random_line = df.loc[random_index]
+        centroidList.append(random_line.tolist()[:-1])
+        df.drop(random_index, inplace = True)
+      
+    return centroidList, N
+
+
 """
 Runs main logic of file
 
@@ -86,11 +143,12 @@ def main():
     if K == -1:
         return 1
 
-    print(data.to_string(index=False, header=False))
+    centroidList, N = kmeanspp(data, K)
+    D = len(centroidList[1])
+
+    data = data.values.tolist()
+    'kmeans.c(K, D, N, iter, eps, centroidList, data)'
     return 0
-
-
-
 
 
 
