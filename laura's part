@@ -11,13 +11,16 @@
 #include <stdlib.h>
 #include <math.h>
 #include <Python.h>
-#include <numpy/arrayobject.h>
 
-#define EPSILON 0.0001
-#define MAX_PATH 200
-double **data= NULL;
-Py_ssize_t global_num_rows = 0;
-Py_ssize_t global_num_cols = 0;
+
+double **data = NULL;
+
+
+typedef struct _object {
+    Py_ssize_t ob_refcnt;         // Reference count
+    struct _typeobject *ob_type;  // Pointer to the object's type
+} PyObject;
+
 
 /**
  * @brief Represents a linked list of points.
@@ -56,42 +59,18 @@ typedef struct CLUSTER_LIST{
     struct CLUSTER_LIST *next;
     int size;
 } CLUSTER_LIST;
-// כאן את מגדירה שבפייתון תקראי בפייתון לפונקציה בשם שבתוך הגרשיים
-static PyMethodDef KMeansMethods[] = {
-    {"kmeans_c", kmeans, METH_VARARGS, "Run K-means clustering."},
-    {NULL, NULL, 0, NULL}  // Sentinel
-};
-**double kmeans(int K, int N, int D, PyObject *data, PyObject *centroids){
+
+
+void process_matrix(PyObject* array, double ***data) {
+    Py_ssize_t i;
     
-}
-
-// 
-static struct PyModuleDef kmeansmodule = {
-    PyModuleDef_HEAD_INIT,
-    "kmeans.c",  // Module name
-    NULL,           // Module documentation
-    -1,             // Size of per-interpreter state of the module
-    KMeansMetod   // Array of methods
-};
-
-
-PyMODINIT_FUNC PyInit_kmeansmodule(void) {
-    import_array();  // Initialize NumPy C API
-    return PyModule_Create(&kmeansmodule);
-}
-// הקוד הזה הופך את הדאטה שמקבלים בפייתון למערך דו מימדי כאן
- void process_matrix(PyObject* array, double ***data) {
-
-    // Get the number of rows
-    Py_ssize_t num_rows = PyList_Size(py_array);
-    
-    // Example: Assume all rows have the same number of columns
+    y_ssize_t num_rows = PyList_Size(py_array);
     PyObject *first_row = PyList_GetItem(py_array, 0);
     Py_ssize_t num_cols = PyList_Size(first_row);
 
     // Allocate memory for the 2D array
     double *data = (double **)malloc(num_rows * sizeof(double *));
-    for (Py_ssize_t i = 0; i < num_rows; i++) {
+    for (i = 0; i < num_rows; i++) {
         *array[i] = (double **)malloc(num_cols * sizeof(double));
     }
 
@@ -105,111 +84,7 @@ PyMODINIT_FUNC PyInit_kmeansmodule(void) {
     }
 }
 
-static PyObject* kmeans(PyObject *self, PyObject *args){
-    PyObject *data_py, *index_centr;
-    if (!PyArg_ParseTuple(args, "OO", &input_list1, &input_list2)) {
-        return NULL;
-    }
 
-    CLUSTER_LIST *cluster_list = make_centroids(&index_centr);          // C arrays to hold the converted values
-    process_matrix(&data_py, &data);
-
-
-    }
-
-typedef struct _object {
-    Py_ssize_t ob_refcnt;         // Reference count
-    struct _typeobject *ob_type;  // Pointer to the object's type
-} PyObject;
-
-/* cheack it the retun type is ok
-*/
-
-
-
-CLUSTER_LIST* make_centroids(PyObject *array) {
-    if (!PyArray_Check(array)) {
-        PyErr_SetString(PyExc_TypeError, "Expected a numpy array.");
-        return NULL;
-    }
-
-    PyArrayObject *np_array = (PyArrayObject *)array;
-    int n_rows = PyArray_DIM(np_array, 0);
-    int n_cols = PyArray_DIM(np_array, 1);
-
-    CLUSTER *head = NULL, *current = NULL
-    for (int i = 0; i < n_rows; i++) {
-        double *centroid = (double *)PyArray_GETPTR2(np_array, i, 0);
-        CLUSTER *new_node = createCluster(centroid, n_cols);
-        if (head == NULL) {
-            head = new_node;
-            current = head;
-        } 
-        else {
-            current->next = new_node;
-            current = new_node;
-        }
-    }
-    return head;
-
-}
-/**
- * @brief point to a given point list.
- * 
- * This function takes a point in R^D and adds it to the head of a linked list representing point list
- * 
- * @param point_list Pointer to a point list
- * @param point Pointer to a double array representing the point
- * @return None, all changed parameters are called by reference
- */
-void addPoint( POINT_LIST **point_list , double *point) {
-    POINT_LIST *tmp = (POINT_LIST *)calloc(1, sizeof(POINT_LIST));
-    if (tmp == NULL) {
-            printf("An error has occurred!");
-            exit(1);
-    }
-    tmp->head = point;
-    tmp->next = *point_list;
-    if (*point_list == NULL) {
-        tmp->size = 1;
-    } else {
-        tmp->size = (*point_list)->size + 1;
-    }
-    *point_list = tmp;
-}   
-
-
-/**
- * @brief Adds cluster to a cluster list
- * 
- * This function adds a cluster to a linked list representing a cluster list, also check memory allocation errors.
- * 
- * @param cluster_list Pointer to a cluster list
- * @param cluste Pointer to a cluster
- * @return None, all changed parameters are called by reference
- */
-void addCluster(CLUSTER_LIST **cluster_list , CLUSTER *cluster) {
-    CLUSTER_LIST *tmp = (CLUSTER_LIST *)calloc(1, sizeof(CLUSTER_LIST));
-    if (tmp == NULL) {
-            printf("An error has occurred!");
-            exit(1);
-        }
-    tmp->head = cluster;
-    tmp->next = *cluster_list;
-    *cluster_list = tmp;
-}
-
-
-/**
- * @brief Initiates cluster
- * 
- * This function takes a point in R^D and int D.
- * It allocates memory for cluster, checks memory allocation errors and initializes its centroid and prev using the coordinates of the point.
- * 
- * @param point Pointer to a point
- * @param D Number of dimensions
- * @return Pointer to the initiated cluster
- */
 CLUSTER *createCluster(double *point, int D){
     CLUSTER *cluster = calloc(1, sizeof(CLUSTER));
     int i;
@@ -238,24 +113,123 @@ CLUSTER *createCluster(double *point, int D){
 
 
 /**
- * @brief Clears point list in given cluster.
+ * @brief Adds cluster to a cluster list
  * 
- * This function frees all memory allocated in cluster list  by iterating on the linked list and using free()
+ * This function adds a cluster to a linked list representing a cluster list, also check memory allocation errors.
  * 
- * @param cluster Pointer to a point list
+ * @param cluster_list Pointer to a cluster list
+ * @param cluste Pointer to a cluster
  * @return None, all changed parameters are called by reference
  */
-void clearCluster(CLUSTER *cluster) {
-    POINT_LIST *curr = cluster->point_list;
-    POINT_LIST *next;
-    while (curr != NULL) {
-        next = curr->next;
-        free(curr);
-        curr = next;
-    }
-    cluster->point_list = NULL;
-    cluster->size = 0;
+void addCluster(CLUSTER_LIST **cluster_list , CLUSTER *cluster) {
+    CLUSTER_LIST *tmp = (CLUSTER_LIST *)calloc(1, sizeof(CLUSTER_LIST));
+    if (tmp == NULL) {
+            printf("An error has occurred!");
+            exit(1);
+        }
+    tmp->head = cluster;
+    tmp->next = *cluster_list;
+    *cluster_list = tmp;
 }
+
+
+/**
+ * @brief Initializes cluster list
+ * 
+ * This function takes the data matrix, pointer to cluster list, an int K and number of dimensions D.
+ * It creates a linked list of size D of clusters and initiates their centroids.
+ * 
+ * @param array, 1d array of integers representing the indexes of the centroids
+ * @return Pointer to the head of the cluster list.
+ */
+CLUSTER_LIST initializeClusters(PyObject *array) {
+    CLUSTER_LIST *cluster_list = NULL;
+    Py_ssize_t K =  PyList_Size(array)
+    Py_ssize_t i;
+    int j;
+
+    for (i = 0; i < K; i++) {
+        j = int(PyList_GetItem(array, i))
+        CLUSTER *cluster = createCluster(&data[j], D);
+        addCluster(cluster_list, cluster);
+    }
+    return *cluster_list;
+}
+
+
+/**
+ * @brief Calculates distance between two points
+ * 
+ * This function takes 2 points in Rd and D and calculates the eucledean distance between the two points
+ * 
+ * @param point_a Point 1
+ * @param point_b Point 2
+ * @param D Number of dimensions
+ * @return Euclidean distance between the 2 points
+ */
+double calculateDistance(double *point_a, double *point_b,  int D){
+    double sum = 0.0;
+    double diff = 0.0;
+    int i;
+    for (i = 0; i < D; i++){
+        diff = point_a[i] - point_b[i];
+        sum += diff * diff;
+    }
+    return sqrt(sum);
+}
+
+
+/**
+ * @brief Finds the closest cluster to a point
+ * 
+ * This function takes a point and iterates through cluster list in order to find the closest cluster to the given point.
+ * 
+ * @param point point in Rd 
+ * @param cluster_list List of clusters
+ * @param D Number of dimensions
+ * @return Pointer to the closest cluster to the point
+ */
+CLUSTER *findClosestCluster(double *point, CLUSTER_LIST *cluster_list, int D) {
+    double minDist = 1.0 / 0.0;
+    double dist;
+    CLUSTER *closestCluster = NULL;
+    CLUSTER_LIST *curr = cluster_list;
+    while (curr != NULL) {
+        dist = calculateDistance(point, curr->head->centroid, D);
+        if (dist < minDist) {
+            minDist = dist;
+            closestCluster = curr->head;
+        }
+        curr = curr->next;
+    }
+    return closestCluster;
+}
+
+
+/**
+ * @brief point to a given point list.
+ * 
+ * This function takes a point in R^D and adds it to the head of a linked list representing point list
+ * 
+ * @param point_list Pointer to a point list
+ * @param point Pointer to a double array representing the point
+ * @return None, all changed parameters are called by reference
+ */
+void addPoint( POINT_LIST **point_list , double *point) {
+    POINT_LIST *tmp = (POINT_LIST *)calloc(1, sizeof(POINT_LIST));
+    if (tmp == NULL) {
+            printf("An error has occurred!");
+            exit(1);
+    }
+    tmp->head = point;
+    tmp->next = *point_list;
+    if (*point_list == NULL) {
+        tmp->size = 1;
+    } else {
+        tmp->size = (*point_list)->size + 1;
+    }
+    *point_list = tmp;
+}   
 
 
 /**
@@ -285,20 +259,212 @@ void updateCentroid(CLUSTER *cluster, int D){
 
 
 /**
- * @brief Calculates the dimension of the given vectors
+ * @brief Adds all points to the cluster list
  * 
- * This function tallies the coordinates listed in the first line.
- * @param D pointer to parameter D
- * @return None, changed parameter is called by reference.
+ * This function takes the data matrix, pointer to cluster list, an int N and number of dimensions D.
+ * It iterates through all of the points (lines) in the matrix asnd adds each point to its closest cluster.
+ * 
+ * @param data 2d float matrix of data
+ * @param cluster_list Pointer to an initiated linked list of clusters
+ * @param N Number of data points
+ * @param D Number of dimensions
+ * @return None, all changed parameters are called by reference.
+ */
+void addPointsToClusters(double **data, CLUSTER_LIST *cluster_list, int N, int D) {
+    int i;
+    for (i = 0; i < N; i++) {
+        CLUSTER *cluster = findClosestCluster(data[i], cluster_list, D);
+        addPoint(&cluster->point_list, data[i]);
+        cluster->size++;
+    }
+}
+
+
+/**
+ * @brief Clears point list in given cluster.
+ * 
+ * This function frees all memory allocated in cluster list  by iterating on the linked list and using free()
+ * 
+ * @param cluster Pointer to a point list
+ * @return None, all changed parameters are called by reference
+ */
+void clearCluster(CLUSTER *cluster) {
+    POINT_LIST *curr = cluster->point_list;
+    POINT_LIST *next;
+    while (curr != NULL) {
+        next = curr->next;
+        free(curr);
+        curr = next;
+    }
+    cluster->point_list = NULL;
+    cluster->size = 0;
+}
+
+
+/**
+ * @brief prints cluster centroids
+ * 
+ * This function takes the cluster list and the number of dimensions and prints the centorid of each cluster.
+ * 
+ * @param curr Pointer to an initiated linked list of clusters
+ * @param D Number of dimensions
+ * @return None
+ */
+void printClusters(CLUSTER_LIST *curr, int D) {
+    int i;
+    if (curr != NULL){
+        printClusters(curr->next, D);
+        for (i = 0; i < D; i++) {
+            printf("%.4f", curr->head->centroid[i]);
+            if (i < D - 1) printf(",");
+        }
+        printf("\n");
+        return;
+    }
+    else return;
+}
+
+
+/**
+ * @brief Frees all memory allocated in the program
+ * 
+ * This function takes the data matrix, cluster list and N and frees all allocated data
+ * 
+ * @param data 2d matrix float array with data
+ * @param N Number of lines in data
+ * @param curr Pointer to a linked list of clusters
+ * @return None
  */
 
-void dimension(int *D){
-    char ch;
-    while((ch = getchar()) != '\n'){
-        if (ch == ','){
-            (*D)++;
+void freeMemory(double ***data, int N, CLUSTER_LIST *curr) {
+    CLUSTER_LIST *next;
+    int i;
+    
+    if (*data != NULL) {
+        for (i = 0; i < N+1; i++) {
+            free((*data)[i]);
         }
-    } 
-    (*D)++;
-    fseek(stdin, 0, SEEK_SET);
+        free(*data);
+        *data = NULL; 
+    }
+    
+    while (curr != NULL) {
+        next = curr->next;
+        if (curr->head != NULL) {
+            free(curr->head->centroid);
+            free(curr->head->prev);
+            clearCluster(curr->head);
+            free(curr->head);
+        }
+        free(curr);
+        curr = next;
+    }
+}
+
+
+static PyObject* kmeans(PyObject *self, PyObject *args){
+    int K;
+    int N;
+    int D;
+    int iter;
+    int eps;
+    PyObject *data_py
+    PyObject *centroids_py;
+    
+    Py_ssize_t num_rows;
+    Py_ssize_t num_cols;
+    Py_ssize_t i;
+    Py_ssize_t j;
+    Py_ssize_t centroid_size;
+
+    //check corectness of input - returns null to python and python will raise a type error
+    if (!PyArg_ParseTuple(args, "idOO", &iter, &eps, &data_py, &index_centr)) {
+        return NULL;
+    }
+
+    //checks validity of data
+    if (!PyList_Check(data_py)) {
+        PyErr_SetString(PyExc_TypeError, "An Error has occured!");
+        return NULL;
+    }
+    num_rows = PyList_Size(data_py);
+    for (i = 0; i < num_rows; i++) {
+        PyObject *row = PyList_GetItem(data_py, i);
+        if (!PyList_Check(row)) {
+            PyErr_SetString(PyExc_TypeError, "An Error has occured!");
+            return NULL;
+        }
+        
+        num_cols = PyList_Size(row);
+        for (j = 0; j < num_cols; j++) {
+            PyObject *item = PyList_GetItem(row, j);
+            if (!PyFloat_Check(item)) {
+                PyErr_SetString(PyExc_TypeError, "An Error has occured!");
+                return NULL;
+            }
+        }
+    }
+    N = int(num_rows);
+    D = int(num_cols);
+
+    centroid_size = PyList_Size(centroids_py);
+    for (Py_ssize_t i = 0; i < centroid_size; i++) {
+        PyObject *item = PyList_GetItem(centroids_py, i);
+        if (!PyFloat_Check(item)) {
+            PyErr_SetString(PyExc_TypeError, "An Error has occured!");
+            return NULL;
+        }
+    }
+
+    K = int(centroid_size);
+
+    process_matrix(&data_py, &data);
+    CLUSTER_LIST *cluster_list = initialize_clusters(&index_centr);  
+
+
+    while (iter > 0){ 
+        addPointsToClusters(data, cluster_list, N, D);
+        flag = 0;
+        curr = cluster_list;
+        while (curr != NULL){
+            for (i = 0; i < D; i++){
+                curr->head->prev[i] = curr->head->centroid[i];
+            }
+            updateCentroid(curr->head, D);
+            diff = calculateDistance(curr->head->prev, curr->head->centroid, D);
+            if (diff > EPSILON) flag = 1;
+            clearCluster(curr->head);
+            curr = curr->next;
+        }
+        if (!flag) break;
+        iter--;
+    }
+
+    printClusters(cluster_list,D);
+    freeMemory(&data, N, cluster_list);
+
+    return 0;  
+
+
+}
+
+
+static PyMethodDef KMeansMethods[] = {
+    {"kmeans_c", kmeans, METH_VARARGS, "Run K-means clustering."},
+    {NULL, NULL, 0, NULL}
+    };
+
+
+static struct PyModuleDef kmeansmodule = {
+    PyModuleDef_HEAD_INIT,
+    "kmeans.c",  // Module name
+    NULL,           // Module documentation
+    -1,             // Size of per-interpreter state of the module
+    KMeansMetod   // Array of methods
+};
+
+
+PyMODINIT_FUNC PyInit_kmeansmodule(void) {
+    import_array();  // Initialize NumPy C API
+    return PyModule_Create(&kmeansmodule);
 }
