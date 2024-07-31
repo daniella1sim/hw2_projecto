@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 from kmeans_module import kmeans
 
-
 """"
 Verifies argument is an int
 @type arg: String
@@ -63,13 +62,13 @@ def verifyData(args):
         if iter >= 1000 or iter <= 0 or err_iter:
             print("Invalid maximum iteration!")
             return -1, 0, 0
-    eps = float(args[3])
+    eps = float(args[2]) if len(args) == 5 else float(args[3])
     if eps <= 0:
         print("Invalid epsilon!")
         return -1, 0, 0
     
-    path1 = args[4] if len(args) == 5 else args[5]
-    path2 = args[5] if len(args) == 6 else args[6]
+    path1 = args[3] if len(args) == 5 else args[4]
+    path2 = args[4] if len(args) == 5 else args[5]
     df = parseDbs(path1, path2)
 
     return K, iter, eps, df
@@ -152,11 +151,11 @@ def main():
     centroidList= kmeanspp(data, K)
     data.pop(0)
     data = data.values.tolist()
-    centroids = kmeans(iter, eps, data, centroidList)
-    print("ahahah")
-    for centroid in centroids:
-        target = ",".join([str(round(i, 4)) for i in centroid])
-        print(target)
+    #centroids = kmeans(iter, eps, data, centroidList)
+    #print("ahahah")
+    #for centroid in centroids:
+    #    target = ",".join([str(round(i, 4)) for i in centroid])
+    #    print(target)
 
     return 0
 
