@@ -1,6 +1,7 @@
 import sys
 import pandas as pd
 import numpy as np
+from kmeans_module import kmeans
 
 
 """"
@@ -129,12 +130,11 @@ def kmeanspp(data, K):
         indexList.append(int(df.loc[random_index, 0]))
         centroidList.append(random_line.tolist()[:-1])
         df.drop(random_index, inplace = True)
-    indexList.sort()
 
     indexStr = ",".join([str(int(i)) for i in indexList])
     print(indexStr)
     df.drop(df.columns[0], axis=1, inplace=True)  
-    return indexList, N
+    return indexList
 
 
 """
@@ -149,10 +149,15 @@ def main():
     if K == -1:
         return 1
 
-    centroidList, N = kmeanspp(data, K)
+    centroidList= kmeanspp(data, K)
+    data.pop(0)
     data = data.values.tolist()
-    D = len(data[0]) - 1
-    'kmeans.c(K, D, N, iter, eps, centroidList, data)'
+    centroids = kmeans(iter, eps, data, centroidList)
+    print("ahahah")
+    for centroid in centroids:
+        target = ",".join([str(round(i, 4)) for i in centroid])
+        print(target)
+
     return 0
 
 
