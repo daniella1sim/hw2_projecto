@@ -1,3 +1,4 @@
+
 /**
  * @file kmeans.c
  * @brief Calculating a k mean clusters from a given input file
@@ -11,9 +12,15 @@
 #include <stdlib.h>
 #include <math.h>
 #include <Python.h>
+#define PyMODINIT_FUNC extern "C" PyObject* (*)(void)
 
 
 double **data = NULL;
+int K;
+int D;
+int N;
+int iter;
+double eps;
 
 
 typedef struct _object {
@@ -360,6 +367,35 @@ void freeMemory(double ***data, int N, CLUSTER_LIST *curr) {
         curr = next;
     }
 }
+PyObject* convert_c_matrix_to_py_list(CLUSTER_LIST *cluster_list) {
+    PyObject *py_list = PyList_New((py_ssize_t)K);  // Create a new Python list for the rows
+    if (!py_list){
+        PyErr_SetString(PyExc_TypeError, "An Error has occured!");
+        return NULL;
+    }
+
+
+    for (Py_ssize_t i = 0; i < rows; i++) {
+        PyObject *row_list = PyList_New((py_ssize_t)D);  // Create a new Python list for each row
+        if (!row_list) {
+            Py_DECREF(py_list);
+            return NULL;
+        }
+
+        for (Py_ssize_t j = 0; j < cols; j++) {
+            PyObject *item = PyFloat_FromDouble(cluster_list->head->centroid[j]);  // Convert each C double to a Python float
+            if (!item) {
+                Py_DECREF(row_list);
+                Py_DECREF(py_list);
+                return NULL;
+            }
+            PyList_SET_ITEM(row_list, j, item);  // Set the item in the row list
+        }
+        PyList_SET_ITEM(py_list, i, row_list);  // Set the row list in the main list
+        cluster_list->next
+    }
+    return py_list;
+}
 
 
 static PyObject* kmeans(PyObject *self, PyObject *args){
@@ -443,28 +479,38 @@ static PyObject* kmeans(PyObject *self, PyObject *args){
     printClusters(cluster_list,D);
     freeMemory(&data, N, cluster_list);
 
-    return 0;  
+    return convert_c_matrix_to_py_list();  
 
 
 }
 
 
 static PyMethodDef KMeansMethods[] = {
-    {"kmeans_c", kmeans, METH_VARARGS, "Run K-means clustering."},
+    {"kmeans", kmeans, METH_VARARGS, "Run K-means clustering."},
     {NULL, NULL, 0, NULL}
     };
 
 
-static struct PyModuleDef kmeansmodule = {
+static struct PyModuleDef kmeans_module = {
     PyModuleDef_HEAD_INIT,
-    "kmeans.c",  // Module name
+    "kmeans_c",  // Module name
     NULL,           // Module documentation
     -1,             // Size of per-interpreter state of the module
     KMeansMetod   // Array of methods
 };
-
-
-PyMODINIT_FUNC PyInit_kmeansmodule(void) {
-    import_array();  // Initialize NumPy C API
-    return PyModule_Create(&kmeansmodule);
+PyMODINIT_FUNC PyInit_kmeans_moudule(void)
+{
+    PyObject *m;
+    m = PyModule_Create(&kmeans_module);
+    if (!m) {
+        return NULL;
+    }
+    return m;
 }
+from setuptools import Extension, setup
+
+module = Extension("kmeans_module", sources=['hw_1.c'])
+setup(name='kmeans_module',
+     version='1.0',
+     description='Python wrapper for custom C extension',
+     ext_modules=[module])
