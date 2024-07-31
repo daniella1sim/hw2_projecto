@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 from kmeans_module import kmeans
 
+
 """"
 Verifies argument is an int
 @type arg: String
@@ -63,7 +64,7 @@ def verifyData(args):
             print("Invalid maximum iteration!")
             return -1, 0, 0
     eps = float(args[2]) if len(args) == 5 else float(args[3])
-    if eps <= 0:
+    if eps < 0:
         print("Invalid epsilon!")
         return -1, 0, 0
     
@@ -151,14 +152,18 @@ def main():
     centroidList= kmeanspp(data, K)
     data.pop(0)
     data = data.values.tolist()
-    #centroids = kmeans(iter, eps, data, centroidList)
-    #print("ahahah")
-    #for centroid in centroids:
-    #    target = ",".join([str(round(i, 4)) for i in centroid])
-    #    print(target)
+    
+    try:
+        centroids = kmeans(iter, eps, data, centroidList)
+    except Exception as e:
+        print(e)
+        return 1
+
+    for i in range(len(centroids)-1, -1, -1):
+        target = ",".join([f"{x:.4f}" for x in centroids[i]])
+        print(target)
 
     return 0
-
 
 
 if __name__ == "__main__":
