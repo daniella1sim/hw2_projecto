@@ -1,7 +1,7 @@
 import sys
 import pandas as pd
 import numpy as np
-from kmeans_module import kmeans
+from kmeans_module import fit
 
 
 """"
@@ -57,7 +57,7 @@ def verifyData(args):
         return -1, 0, 0
     err_K, K = isInt(args[1])
     if len(args) == 5:
-        iter = 200
+        iter = 300
     else:
         err_iter, iter = isInt(args[2])
         if iter >= 1000 or iter <= 0 or err_iter:
@@ -154,7 +154,7 @@ def main():
     data = data.values.tolist()
     
     try:
-        centroids = kmeans(iter, eps, data, centroidList)
+        centroids = fit(iter, eps, data, centroidList)
     except Exception as e:
         print(e)
         return 1
