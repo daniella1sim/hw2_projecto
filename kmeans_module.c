@@ -78,7 +78,7 @@ void processMatrix(PyObject* array) {
     data = (double **)malloc(N * sizeof(double *));
     if (data == NULL) {
         PyErr_SetString(PyExc_MemoryError, "An error has occurred!");
-        return NULL;
+        exit(1);
     }
     for (i = 0; i < N; i++) {
         data[i] = (double *)malloc(D * sizeof(double));
@@ -88,7 +88,7 @@ void processMatrix(PyObject* array) {
                 free(data[j]);
             }
             free(data);
-            return NULL;
+            exit(1);
         }
     }
     for (i = 0; i < N; i++) {
@@ -116,7 +116,7 @@ CLUSTER *createCluster(double *point){
 
     if (cluster == NULL){
         PyErr_SetString(PyExc_MemoryError, "An error has occurred!");
-        return NULL;
+        exit(1);
     }
     
     cluster->centroid = (double *)calloc(D, sizeof(double));
@@ -127,7 +127,7 @@ CLUSTER *createCluster(double *point){
         free(cluster);
         if (cluster->centroid != NULL) free(cluster->centroid);
         else if (cluster->prev != NULL) free(cluster->prev);
-        return NULL;
+        exit(1);
     }
     
     for (i = 0; i < D; i++) {
@@ -152,7 +152,7 @@ void addCluster(CLUSTER *cluster) {
     CLUSTER_LIST *tmp = (CLUSTER_LIST *)calloc(1, sizeof(CLUSTER_LIST));
     if (tmp == NULL) {
         PyErr_SetString(PyExc_MemoryError, "An error has occurred!");
-        return NULL;
+        exit(1);
     }
     tmp->head = cluster;
     tmp->next = cluster_list;
@@ -169,7 +169,7 @@ void addCluster(CLUSTER *cluster) {
  * @param array, 1d array of integers representing the indexes of the centroids
  * @return None, all changed parameters are called by reference.
  */
-void *initializeClusters(PyObject *array) {
+void initializeClusters(PyObject *array) {
     CLUSTER *cluster;
     int i;
     long index;
@@ -266,7 +266,7 @@ void addPoint( POINT_LIST **point_list , double *point) {
     POINT_LIST *tmp = (POINT_LIST *)calloc(1, sizeof(POINT_LIST));
     if (tmp == NULL) {
         PyErr_SetString(PyExc_MemoryError, "An error has occurred!");
-        return NULL;
+        exit(1);
     }
     tmp->head = point;
     tmp->next = *point_list;
@@ -391,7 +391,7 @@ PyObject* convert_c_matrix_to_py_list() {
     py_list = PyList_New((Py_ssize_t)K);
     if (py_list == NULL) {
         PyErr_SetString(PyExc_MemoryError, "An error has occurred!");
-        return NULL;
+        exit(1);
     }
 
     for (i = 0; i < K; i++) {
@@ -399,7 +399,7 @@ PyObject* convert_c_matrix_to_py_list() {
         if (row_list == NULL) {
             PyErr_SetString(PyExc_MemoryError, "An error has occurred!");
             Py_DECREF(py_list);
-            return NULL;
+            exit(1);
         }
         
         for (j = 0; j < D; j++) {
@@ -408,7 +408,7 @@ PyObject* convert_c_matrix_to_py_list() {
                 PyErr_SetString(PyExc_MemoryError, "An error has occurred!");
                 Py_DECREF(row_list);
                 Py_DECREF(py_list);
-                return NULL;
+                exit(1);
             }
             
             PyList_SET_ITEM(row_list, (Py_ssize_t)j, item);
@@ -464,7 +464,7 @@ void freeMemory() {
  * @param args
  * @return Python list of centroids
  */
-static PyObject* kmeans(PyObject *self, PyObject *args){
+static PyObject* fit(PyObject *self, PyObject *args){
     PyObject *data_py;
     PyObject *centroids_py;
     PyObject *newdata;
@@ -472,7 +472,7 @@ static PyObject* kmeans(PyObject *self, PyObject *args){
 
     if (!PyArg_ParseTuple(args, "idOO", &iter, &eps, &data_py, &centroids_py)) {
         PyErr_SetString(PyExc_ValueError, "An error has occurred!");
-        return NULL;
+        exit(1);
     }
     kmeansSetup(data_py, centroids_py);
     while (iter > 0){ 
@@ -494,7 +494,7 @@ static PyObject* kmeans(PyObject *self, PyObject *args){
  * This structure represents the methods of the module.
  */
 static PyMethodDef KMeansMethods[] = {
-    {"kmeans", kmeans, METH_VARARGS, "Run K-means clustering."},
+    {"fit", fit, METH_VARARGS, "Run K-means clustering."},
     {NULL, NULL, 0, NULL}
 };
 
@@ -525,7 +525,7 @@ PyMODINIT_FUNC PyInit_kmeans_module(void)
     PyObject *m;
     m = PyModule_Create(&kmeans_module);
     if (!m) {
-        return NULL;
+        exit(1);
     }
     return m;
 }
