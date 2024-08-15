@@ -67,9 +67,9 @@ CLUSTER_LIST *cluster_list = NULL;
  * This function takes a 2D matrix in the form of a Python list and stores it in a 2D array.
  * 
  * @param array 2D matrix in the form of a Python list
- * @return None, all changed parameters are called by reference
+ * @return Int, indicating success or failure
  */
-void processMatrix(PyObject* array) {
+int processMatrix(PyObject* array) {
     int i;
     int j;
     PyObject *row;
@@ -77,18 +77,16 @@ void processMatrix(PyObject* array) {
 
     data = (double **)malloc(N * sizeof(double *));
     if (data == NULL) {
-        PyErr_SetString(PyExc_MemoryError, "An error has occurred!");
-        exit(1);
+        return -1;
     }
     for (i = 0; i < N; i++) {
         data[i] = (double *)malloc(D * sizeof(double));
         if (data[i] == NULL) {
-            PyErr_SetString(PyExc_MemoryError, "An error has occurred!");
             for (j = 0; j < i; j++) {
                 free(data[j]);
             }
             free(data);
-            exit(1);
+            return -1;
         }
     }
     for (i = 0; i < N; i++) {
@@ -98,7 +96,7 @@ void processMatrix(PyObject* array) {
             data[i][j] = PyFloat_AsDouble(item);
         }
     }
-
+    return 0;
 }
 
 
@@ -115,19 +113,17 @@ CLUSTER *createCluster(double *point){
     int i;
 
     if (cluster == NULL){
-        PyErr_SetString(PyExc_MemoryError, "An error has occurred!");
-        exit(1);
+        return NULL;
     }
     
     cluster->centroid = (double *)calloc(D, sizeof(double));
     cluster->prev = (double *)calloc(D, sizeof(double));
 
     if (cluster->centroid == NULL || cluster->prev == NULL){
-        PyErr_SetString(PyExc_MemoryError, "An error has occurred!");
         free(cluster);
         if (cluster->centroid != NULL) free(cluster->centroid);
         else if (cluster->prev != NULL) free(cluster->prev);
-        exit(1);
+        return NULL;
     }
     
     for (i = 0; i < D; i++) {
@@ -145,18 +141,18 @@ CLUSTER *createCluster(double *point){
  * 
  * This function adds a cluster to a linked list representing a cluster list, also check memory allocation errors.
  * 
- * @param cluste Pointer to a cluster
- * @return None, all changed parameters are called by reference
+ * @param cluster Pointer to a cluster
+ * @return Int, indicating success or failure
  */
-void addCluster(CLUSTER *cluster) {
+int addCluster(CLUSTER *cluster) {
     CLUSTER_LIST *tmp = (CLUSTER_LIST *)calloc(1, sizeof(CLUSTER_LIST));
     if (tmp == NULL) {
-        PyErr_SetString(PyExc_MemoryError, "An error has occurred!");
-        exit(1);
+        return -1;
     }
     tmp->head = cluster;
     tmp->next = cluster_list;
     cluster_list = tmp;
+    return 0;
 }
 
 
@@ -167,9 +163,9 @@ void addCluster(CLUSTER *cluster) {
  * It creates a linked list of size D of clusters and initiates their centroids.
  * 
  * @param array, 1d array of integers representing the indexes of the centroids
- * @return None, all changed parameters are called by reference.
+ * @return Int, success or failure of the function.
  */
-void initializeClusters(PyObject *array) {
+int initializeClusters(PyObject *array) {
     CLUSTER *cluster;
     int i;
     long index;
@@ -181,8 +177,15 @@ void initializeClusters(PyObject *array) {
         index = PyLong_AsLong(item);
         j = (int)index;
         cluster = createCluster(data[j]);
-        addCluster(cluster);
+        if (cluster == NULL){
+            return -1;
+        }
+        
+        if (addCluster(cluster) == -1){
+            return -1;
+        };
     }
+    return 0;
 }
 
 
@@ -193,8 +196,9 @@ void initializeClusters(PyObject *array) {
  * 
  * @param data_py Python list of data points.
  * @param centroids_py Python list of initial centroids.
+ * @return Int, indicating success or failure
  */
-void kmeansSetup(PyObject *data_py, PyObject *centroids_py) {
+int kmeansSetup(PyObject *data_py, PyObject *centroids_py) {
     Py_ssize_t num_rows = PyList_Size(data_py);
     Py_ssize_t num_cols = PyList_Size(PyList_GetItem(data_py, 0));
     N = (int)num_rows;
@@ -202,8 +206,16 @@ void kmeansSetup(PyObject *data_py, PyObject *centroids_py) {
     Py_ssize_t centroid_size = PyList_Size(centroids_py);
     K = (int)centroid_size;
 
-    processMatrix(data_py);
-    initializeClusters(centroids_py);
+    if (processMatrix(data_py) == -1){
+        return -1;
+    };
+    
+    if (initializeClusters(centroids_py) == -1){
+        PyErr_SetString(PyExc_ValueError, "An error has occurred!");
+        return -1;
+    };
+
+    return 0;
 }
 
 
@@ -260,13 +272,12 @@ CLUSTER *findClosestCluster(double *point) {
  * 
  * @param point_list Pointer to a point list
  * @param point Pointer to a double array representing the point
- * @return None, all changed parameters are called by reference
+ * @return Int, indicating success or failure
  */
-void addPoint( POINT_LIST **point_list , double *point) {
+int addPoint( POINT_LIST **point_list , double *point) {
     POINT_LIST *tmp = (POINT_LIST *)calloc(1, sizeof(POINT_LIST));
     if (tmp == NULL) {
-        PyErr_SetString(PyExc_MemoryError, "An error has occurred!");
-        exit(1);
+        return -1;
     }
     tmp->head = point;
     tmp->next = *point_list;
@@ -276,6 +287,7 @@ void addPoint( POINT_LIST **point_list , double *point) {
         tmp->size = (*point_list)->size + 1;
     }
     *point_list = tmp;
+    return 0;
 }   
 
 
@@ -310,16 +322,19 @@ void updateCentroid(CLUSTER *cluster){
  * This function takes the data matrix, pointer to cluster list, an int N and number of dimensions D.
  * It iterates through all of the points (lines) in the matrix asnd adds each point to its closest cluster.
  * 
- * @return None, all changed parameters are called by reference.
+ * @return Int, indicating success or failure
  */
-void addPointsToClusters() {
+int addPointsToClusters() {
     int i;
     CLUSTER *cluster;
     for (i = 0; i < N; i++) {
         cluster = findClosestCluster(data[i]);
-        addPoint(&cluster->point_list, data[i]);
+        if (addPoint(&cluster->point_list, data[i]) == -1){
+            return -1;
+        }
         cluster->size++;
     }
+    return 0;
 }
 
 
@@ -349,14 +364,16 @@ void clearCluster(CLUSTER *cluster) {
  * 
  * This function assigns data points to the closest cluster, updates the centroids, and checks convergence.
  * 
- * @return 1 if the algorithm should continue, 0 if it has converged.
+ * @return 1 if the algorithm should continue, 0 if it has converged, -1 if error.
  */
 int kmeansIteration() {
     int flag = 0;
     double diff;
     CLUSTER_LIST *curr;
     
-    addPointsToClusters();
+    if (addPointsToClusters() == -1){
+        return -1;
+    };
     
     curr = cluster_list;
     while (curr != NULL) {
@@ -390,25 +407,22 @@ PyObject* convert_c_matrix_to_py_list() {
 
     py_list = PyList_New((Py_ssize_t)K);
     if (py_list == NULL) {
-        PyErr_SetString(PyExc_MemoryError, "An error has occurred!");
-        exit(1);
+        return NULL;
     }
 
     for (i = 0; i < K; i++) {
         row_list = PyList_New((Py_ssize_t)D); 
         if (row_list == NULL) {
-            PyErr_SetString(PyExc_MemoryError, "An error has occurred!");
             Py_DECREF(py_list);
-            exit(1);
+            return NULL;
         }
         
         for (j = 0; j < D; j++) {
             item = PyFloat_FromDouble(curr->head->centroid[j]); 
             if (item == NULL) {
-                PyErr_SetString(PyExc_MemoryError, "An error has occurred!");
                 Py_DECREF(row_list);
                 Py_DECREF(py_list);
-                exit(1);
+                return NULL;
             }
             
             PyList_SET_ITEM(row_list, (Py_ssize_t)j, item);
@@ -472,16 +486,27 @@ static PyObject* fit(PyObject *self, PyObject *args){
 
     if (!PyArg_ParseTuple(args, "idOO", &iter, &eps, &data_py, &centroids_py)) {
         PyErr_SetString(PyExc_ValueError, "An error has occurred!");
-        exit(1);
+        return NULL;
     }
-    kmeansSetup(data_py, centroids_py);
+    if (kmeansSetup(data_py, centroids_py) == -1){
+        PyErr_SetString(PyExc_ValueError, "An error has occurred!");
+        return NULL;
+    };
+
     while (iter > 0){ 
         flag = kmeansIteration();
-        if (flag == 0) break;
+        if (flag == -1){
+            PyErr_SetString(PyExc_ValueError, "An error has occurred!");
+            return NULL; 
+        }
+        else if (flag == 0) break;
         iter--;
     }
     newdata = convert_c_matrix_to_py_list();
-    if (newdata == NULL) PyErr_SetString(PyExc_MemoryError, "An error has occurred!");
+    if (newdata == NULL){
+        PyErr_SetString(PyExc_ValueError, "An error has occurred!");
+        return NULL;
+    }
     
     freeMemory();
     return newdata;  
